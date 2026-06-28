@@ -309,6 +309,19 @@
       line-height: 1.8;
     }
 
+    .detail-editor {
+      min-height: 280px;
+      max-height: 56vh;
+    }
+
+    .edit-actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
     .detail-meta {
       margin: 0 0 14px;
       color: var(--muted);
@@ -465,12 +478,18 @@
             <h2>メモ詳細</h2>
             <div class="toolbar">
               <button type="button" id="backToList">一覧へ</button>
+              <button type="button" id="editFromDetail" hidden>編集</button>
               <button type="button" id="deleteFromDetail" class="danger">削除</button>
             </div>
           </div>
 
           <div id="detailMeta" class="detail-meta"></div>
-          <div id="detailBody" class="detail-body"></div>
+          <div id="detailBody" class="detail-body" hidden></div>
+          <textarea id="detailEditor" class="detail-editor" maxlength="20000"></textarea>
+          <div id="editActions" class="edit-actions">
+            <button type="button" id="cancelEdit" class="ghost">キャンセル</button>
+            <button type="button" id="saveEdit" class="primary">保存</button>
+          </div>
         </section>
       </main>
 
@@ -532,6 +551,11 @@
         memoCards: document.getElementById("memoCards"),
         detailMeta: document.getElementById("detailMeta"),
         detailBody: document.getElementById("detailBody"),
+        detailEditor: document.getElementById("detailEditor"),
+        editActions: document.getElementById("editActions"),
+        editFromDetail: document.getElementById("editFromDetail"),
+        cancelEdit: document.getElementById("cancelEdit"),
+        saveEdit: document.getElementById("saveEdit"),
         deleteFromDetail: document.getElementById("deleteFromDetail"),
 
         confirmDialog: document.getElementById("confirmDialog"),
@@ -582,6 +606,10 @@
         els.writeScreen.classList.toggle("active", name === "write");
         els.listScreen.classList.toggle("active", name === "list");
         els.detailScreen.classList.toggle("active", name === "detail");
+
+        if (name !== "detail") {
+          setEditing(false);
+        }
 
         if (name === "list") {
           renderList();
@@ -678,6 +706,7 @@
 
       function openDetail(id) {
         state.currentMemoId = id;
+        setEditing(false);
         showScreen("detail");
       }
 
@@ -692,6 +721,48 @@
 
         els.detailMeta.innerHTML = `<span>${formatDate(memo.createdAt)}</span><span>${countChars(memo.body)}文字</span>`;
         els.detailBody.textContent = memo.body;
+        els.detailEditor.value = memo.body;
+        setEditing(true);
+      }
+
+      function startEdit() {
+        const memo = state.memos.find((item) => item.id === state.currentMemoId);
+        if (!memo) return;
+
+        els.detailEditor.value = memo.body;
+        setEditing(true);
+        els.detailEditor.focus();
+      }
+
+      function cancelEdit() {
+        const memo = state.memos.find((item) => item.id === state.currentMemoId);
+        if (memo) {
+          els.detailEditor.value = memo.body;
+        }
+        els.detailEditor.focus();
+      }
+
+      function saveEdit() {
+        const memo = state.memos.find((item) => item.id === state.currentMemoId);
+        if (!memo) return;
+
+        const body = els.detailEditor.value;
+        if (!body.trim()) {
+          els.detailEditor.focus();
+          return;
+        }
+
+        memo.body = body;
+        saveState();
+        setEditing(false);
+        showScreen("list");
+      }
+
+      function setEditing(isEditing) {
+        els.detailBody.hidden = isEditing;
+        els.detailEditor.hidden = !isEditing;
+        els.editActions.hidden = !isEditing;
+        els.editFromDetail.hidden = true;
       }
 
       function requestDelete(id) {
@@ -870,6 +941,9 @@
         els.goListFromWrite.addEventListener("click", () => showScreen("list"));
         els.goWriteFromList.addEventListener("click", () => showScreen("write"));
         els.backToList.addEventListener("click", () => showScreen("list"));
+        els.editFromDetail.addEventListener("click", startEdit);
+        els.cancelEdit.addEventListener("click", cancelEdit);
+        els.saveEdit.addEventListener("click", saveEdit);
 
         els.deleteFromDetail.addEventListener("click", () => {
           if (state.currentMemoId) {
